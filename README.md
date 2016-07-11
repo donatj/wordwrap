@@ -1,6 +1,6 @@
 # WordWrap
 
-[![Go Report Card](http://goreportcard.com/badge/donatj/wordwrap)](http://goreportcard.com/report/donatj/wordwrap)
+[![Go Report Card](https://goreportcard.com/badge/github.com/donatj/wordwrap)](https://goreportcard.com/report/github.com/donatj/wordwrap)
 [![GoDoc](https://godoc.org/github.com/donatj/wordwrap?status.svg)](https://godoc.org/github.com/donatj/wordwrap)
 
 UTF-8 Safe Word Wrapping for Go based on number of bytes.

@@ -2,6 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/donatj/wordwrap)](https://goreportcard.com/report/github.com/donatj/wordwrap)
 [![GoDoc](https://godoc.org/github.com/donatj/wordwrap?status.svg)](https://godoc.org/github.com/donatj/wordwrap)
+[![Build Status](https://travis-ci.org/donatj/wordwrap.svg?branch=master)](https://travis-ci.org/donatj/wordwrap)
 
 UTF-8 Safe Word Wrapping for Go based on number of bytes.
 

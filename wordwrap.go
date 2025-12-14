@@ -175,7 +175,8 @@ func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[string, error]
 				} else {
 					if workingLine.Len() > int(byteLimit) {
 						if lastPos.pos == 0 {
-							// Single grapheme cluster larger than byteLimit (shouldn't happen with check above)
+							// Single grapheme cluster larger than byteLimit
+							// This should be caught earlier when breakGraphemeClusters is false
 							line := workingLine.String()
 							if sb.trimTrailingWhiteSpace {
 								line = strings.TrimRight(line, " \t\n\r")

@@ -73,7 +73,7 @@ Becomes:
 Grapheme Clusters:
 
 ```go
-fmt.Println(wordwrap.WrapString(`Hello 👩‍👩‍👧‍👧 family 🧑‍🎄 celebrating café with naïve résumé 🏳️‍🌈 pride`, 30))
+fmt.Println(wordwrap.WrapString(`Hello 👩‍👩‍👧‍👧 family 🧑‍🎄 celebrating café with naïve résumé क्षि`, 30))
 ```
 
 Becomes:
@@ -83,7 +83,7 @@ Hello                                                        // 6 bytes
 👩‍👩‍👧‍👧                                    // 26 bytes
 family 🧑‍🎄                                           // 19 bytes
 celebrating café with naïve                                // 30 bytes
-résumé 🏳️‍🌈 pride                                // 29 bytes
+résumé क्षि                                        // 21 bytes
 ```
 
 ### Panics

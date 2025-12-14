@@ -42,6 +42,78 @@ func TestSplitString(t *testing.T) {
 				"전체 연령 하고' 구호 '을 빚을 해야 하는 ",
 				"경우, 상속인 이 지불 에 대한 자신의 상속을 ",
 				"가져야한다 ' 구호 ' 의 고대 규모의 "}, 60},
+
+		// ZWJ sequences - family emoji
+		{"Hello 👩‍👩‍👧‍👧 world",
+			[]string{"Hello 👩‍👩‍👧‍👧 ", "world"}, 32},
+
+		// ZWJ sequences - person with Christmas tree
+		{"Test 🧑‍🎄 emoji here",
+			[]string{"Test 🧑‍🎄 ", "emoji here"}, 20},
+
+		// Long word with ZWJ emoji (no spaces to break on)
+		{"abcdefgh👩‍👩‍👧‍👧ijklmn",
+			[]string{"abcdefgh", "👩‍👩‍👧‍👧ijklm", "n"}, 30},
+
+		// Multiple ZWJ emojis
+		{"🧑‍🎄 and 👩‍👩‍👧‍👧 test",
+			[]string{"🧑‍🎄 and ", "👩‍👩‍👧‍👧 ", "test"}, 30},
+
+		// ZWJ emoji at the start
+		{"👩‍👩‍👧‍👧 family",
+			[]string{"👩‍👩‍👧‍👧 ", "family"}, 30},
+
+		// ZWJ emoji at the end
+		{"family 👩‍👩‍👧‍👧",
+			[]string{"family ", "👩‍👩‍👧‍👧"}, 30},
+
+		// Devanagari complex clusters
+		{"नमस्ते क्षि test",
+			[]string{"नमस्ते ", "क्षि test"}, 20},
+
+		// Devanagari multiple clusters
+		{"श्री त्र द्ध test",
+			[]string{"श्री ", "त्र द्ध ", "test"}, 20},
+
+		// Arabic with diacritics
+		{"السلام عليكم مُحَمَّد test",
+			[]string{"السلام عليكم ", "مُحَمَّد test"}, 25},
+
+		// Hebrew with points
+		{"שָׁלוֹם test word",
+			[]string{"שָׁלוֹם test ", "word"}, 20},
+
+		// Thai with tone marks
+		{"สวัสดี ก้า test",
+			[]string{"สวัสดี ", "ก้า test"}, 20},
+
+		// Emoji with skin tone modifiers
+		{"Hello 👋🏽 👍🏿 world",
+			[]string{"Hello 👋🏽 ", "👍🏿 world"}, 20},
+
+		// Emoji woman technologist (ZWJ with profession)
+		{"Test 👩‍💻 code",
+			[]string{"Test 👩‍💻 ", "code"}, 20},
+
+		// Keycap sequences
+		{"Numbers 1️⃣ 2️⃣ 3️⃣ here",
+			[]string{"Numbers 1️⃣ ", "2️⃣ 3️⃣ ", "here"}, 20},
+
+		// Regional indicator (flag emoji) - fits within limit
+		{"Hello 🇺🇸 test",
+			[]string{"Hello 🇺🇸 test"}, 20},
+
+		// Bengali complex cluster
+		{"বাংলা ক্ষ test",
+			[]string{"বাংলা ", "ক্ষ test"}, 20},
+
+		// Tamil with vowel signs
+		{"தமிழ் நீ கூ test",
+			[]string{"தமிழ் ", "நீ கூ test"}, 20},
+
+		// Vietnamese with multiple combining marks
+		{"Tiếng Việt ệ test",
+			[]string{"Tiếng Việt ệ ", "test"}, 20},
 	}
 
 	for _, test := range tests {
@@ -50,5 +122,75 @@ func TestSplitString(t *testing.T) {
 		if !reflect.DeepEqual(actual, test.output) {
 			t.Errorf(`SplitString(%#v) = %#v; want %#v`, test.input, actual, test.output)
 		}
+	}
+}
+
+func TestSplitStringPanic(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		bytelim uint
+	}{
+		{
+			name:    "Family emoji too large",
+			input:   "👩‍👩‍👧‍👧",
+			bytelim: 20, // Family emoji is 25 bytes
+		},
+		{
+			name:    "Person with tree emoji too large",
+			input:   "🧑‍🎄",
+			bytelim: 8, // Person with tree is 11 bytes
+		},
+		{
+			name:    "Grapheme cluster in word too large",
+			input:   "test👩‍👩‍👧‍👧end",
+			bytelim: 20, // Cannot break within the emoji
+		},
+		{
+			name:    "Devanagari single cluster too large",
+			input:   "क्",
+			bytelim: 5, // क् is 6 bytes
+		},
+		{
+			name:    "Devanagari cluster at end too large",
+			input:   "test नी",
+			bytelim: 5, // "test " is 5 bytes, नी is 6 bytes, needs > 11 total, but नी alone exceeds 5
+		},
+		{
+			name:    "Thai cluster single too large",
+			input:   "ก้",
+			bytelim: 5, // ก้ is 6 bytes
+		},
+		{
+			name:    "Tag sequence flag too large",
+			input:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+			bytelim: 25, // England flag is 28 bytes
+		},
+		{
+			name:    "Emoji with skin tone at end",
+			input:   "test 👋🏽",
+			bytelim: 7, // 👋🏽 is 8 bytes, "test " is 5 bytes, total 13, cannot fit at limit 7
+		},
+		{
+			name:    "Keycap sequence too large",
+			input:   "1️⃣",
+			bytelim: 6, // 1️⃣ is 7 bytes
+		},
+		{
+			name:    "Vietnamese combining marks too large",
+			input:   "ệ",
+			bytelim: 2, // ệ is 3 bytes
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("SplitString(%#v, %d) should have panicked", test.input, test.bytelim)
+				}
+			}()
+			SplitString(test.input, test.bytelim)
+		})
 	}
 }

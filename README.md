@@ -7,7 +7,9 @@
 
 UTF-8 Safe Word Wrapping for Go based on number of bytes.
 
-This is a word wrap library that doesn’t *break UTF-8 runes* **and** *operates on number of bytes* rather than runes. It’s preference is to break on a unicode space character, but will break long words if necessary. This is particularly useful for breaking up unicode messages on protocols where message size is limited by bytes.
+This library wraps text without breaking UTF-8 grapheme clusters. It operates on byte count, not runes. It breaks on whitespace first. If a word is too long, it breaks between grapheme clusters. It never splits emojis like 👩‍👩‍👧‍👧 or characters with combining marks.
+
+This is useful for protocols where message size is limited by bytes.
 
 ### Samples
 
@@ -64,4 +66,50 @@ Becomes:
 전체 연령 하고' 구호 '을 빚을 해야 하는    // 55 bytes
 경우, 상속인 이 지불 에 대한 자신의 상속을 // 60 bytes
 가져야한다 ' 구호 ' 의 고대 규모의         // 47 bytes
+```
+
+---
+
+Grapheme Clusters:
+
+```go
+fmt.Println(wordwrap.WrapString(`Hello 👩‍👩‍👧‍👧 family 🧑‍🎄 celebrating café with naïve résumé क्षि`, 30))
+```
+
+Becomes:
+
+```
+Hello                                                        // 6 bytes
+👩‍👩‍👧‍👧                                    // 26 bytes
+family 🧑‍🎄                                           // 19 bytes
+celebrating café with naïve                                // 30 bytes
+résumé क्षि                                        // 21 bytes
+```
+
+### Panics
+
+The library panics when a grapheme cluster exceeds the byte limit.
+
+Single Japanese character on 2-byte limit:
+
+```go
+wordwrap.SplitString("し", 2)  // panics: し is 3 bytes
+```
+
+Family emoji on 20-byte limit:
+
+```go
+wordwrap.SplitString("👩‍👩‍👧‍👧", 20)  // panics: emoji is 25 bytes
+```
+
+Person with tree on 8-byte limit:
+
+```go
+wordwrap.SplitString("🧑‍🎄", 8)  // panics: emoji is 11 bytes
+```
+
+String ending with oversized cluster:
+
+```go
+wordwrap.SplitString("test 👩‍👩‍👧‍👧", 20)  // panics: emoji is 25 bytes
 ```

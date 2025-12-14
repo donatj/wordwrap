@@ -3,6 +3,7 @@
 package wordwrap
 
 import (
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -22,7 +23,7 @@ type charPos struct {
 // For example if the grapheme cluster `👩‍👩‍👧‍👧` (25 bytes) is given, yet we ask
 // it to break on a byte limit of 20, it will panic.
 func SplitString(s string, byteLimit uint) []string {
-	workingLine := ""
+	var workingLine strings.Builder
 	finishedLines := []string{}
 
 	spacePos := charPos{}
@@ -34,33 +35,38 @@ func SplitString(s string, byteLimit uint) []string {
 		cluster := gr.Str()
 		clusterSize := len(cluster)
 
-		workingLine += cluster
+		workingLine.WriteString(cluster)
 
 		// Check if the cluster contains a space (check first rune)
 		if len(cluster) > 0 {
 			firstRune, _ := utf8.DecodeRuneInString(cluster)
 			if unicode.IsSpace(firstRune) {
-				spacePos = charPos{len(workingLine), clusterSize}
+				spacePos = charPos{workingLine.Len(), clusterSize}
 			}
 		}
 
-		if len(workingLine) >= int(byteLimit) {
+		if workingLine.Len() >= int(byteLimit) {
 			if spacePos.size > 0 {
-				finishedLines = append(finishedLines, workingLine[0:spacePos.pos])
+				line := workingLine.String()
+				finishedLines = append(finishedLines, line[0:spacePos.pos])
 
-				workingLine = workingLine[spacePos.pos:]
+				workingLine.Reset()
+				workingLine.WriteString(line[spacePos.pos:])
 			} else {
-				if len(workingLine) > int(byteLimit) {
+				if workingLine.Len() > int(byteLimit) {
 					// If there's no valid break point (lastPos.pos is 0),
 					// it means we have a single grapheme cluster larger than byteLimit
 					if lastPos.pos == 0 {
 						panic("attempted to cut grapheme cluster")
 					}
-					finishedLines = append(finishedLines, workingLine[0:lastPos.pos])
-					workingLine = workingLine[lastPos.pos:]
+					line := workingLine.String()
+					finishedLines = append(finishedLines, line[0:lastPos.pos])
+					
+					workingLine.Reset()
+					workingLine.WriteString(line[lastPos.pos:])
 				} else {
-					finishedLines = append(finishedLines, workingLine)
-					workingLine = ""
+					finishedLines = append(finishedLines, workingLine.String())
+					workingLine.Reset()
 				}
 			}
 
@@ -71,11 +77,11 @@ func SplitString(s string, byteLimit uint) []string {
 			spacePos = charPos{}
 		}
 
-		lastPos = charPos{len(workingLine), clusterSize}
+		lastPos = charPos{workingLine.Len(), clusterSize}
 	}
 
-	if workingLine != "" {
-		finishedLines = append(finishedLines, workingLine)
+	if workingLine.Len() > 0 {
+		finishedLines = append(finishedLines, workingLine.String())
 	}
 
 	return finishedLines

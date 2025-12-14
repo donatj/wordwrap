@@ -306,3 +306,178 @@ func TestWrapStringError(t *testing.T) {
 		})
 	}
 }
+
+func TestSplitBuilder_DefaultBehavior(t *testing.T) {
+	// Test that default SplitBuilder matches SplitString behavior
+	input := "asdasd asd asdasd"
+	bytelim := uint(4)
+	expected := []string{"asda", "sd ", "asd ", "asda", "sd"}
+
+	sb := NewSplitBuilder(bytelim)
+	
+	var actual []string
+	for _, line := range sb.Split(input) {
+		actual = append(actual, line)
+	}
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("SplitBuilder.Split(%#v) = %#v; want %#v", input, actual, expected)
+	}
+}
+
+func TestSplitBuilder_WithIndex(t *testing.T) {
+	input := "Hello world this is a test"
+	bytelim := uint(10)
+	
+	sb := NewSplitBuilder(bytelim)
+	
+	expectedLines := []string{"Hello ", "world ", "this is a ", "test"}
+	actualLines := []string{}
+	actualIndices := []int{}
+	
+	for idx, line := range sb.Split(input) {
+		actualIndices = append(actualIndices, idx)
+		actualLines = append(actualLines, line)
+	}
+	
+	if !reflect.DeepEqual(actualLines, expectedLines) {
+		t.Errorf("Lines mismatch: got %#v; want %#v", actualLines, expectedLines)
+	}
+	
+	expectedIndices := []int{0, 1, 2, 3}
+	if !reflect.DeepEqual(actualIndices, expectedIndices) {
+		t.Errorf("Indices mismatch: got %#v; want %#v", actualIndices, expectedIndices)
+	}
+}
+
+func TestSplitBuilder_TrimTrailingWhiteSpace(t *testing.T) {
+	input := "Hello world this is a test"
+	bytelim := uint(10)
+	
+	sb := NewSplitBuilder(bytelim, TrimTrailingWhiteSpace(true))
+	
+	expectedLines := []string{"Hello", "world", "this is a", "test"}
+	actualLines := []string{}
+	
+	for _, line := range sb.Split(input) {
+		actualLines = append(actualLines, line)
+	}
+	
+	if !reflect.DeepEqual(actualLines, expectedLines) {
+		t.Errorf("Lines with trim: got %#v; want %#v", actualLines, expectedLines)
+	}
+}
+
+func TestSplitBuilder_TrimTrailingWhiteSpace_MultipleSpaces(t *testing.T) {
+	input := "test   more   data"
+	bytelim := uint(10)
+	
+	sb := NewSplitBuilder(bytelim, TrimTrailingWhiteSpace(true))
+	
+	expectedLines := []string{"test", "more", "data"}
+	actualLines := []string{}
+	
+	for _, line := range sb.Split(input) {
+		actualLines = append(actualLines, line)
+	}
+	
+	if !reflect.DeepEqual(actualLines, expectedLines) {
+		t.Errorf("Lines with multiple spaces trim: got %#v; want %#v", actualLines, expectedLines)
+	}
+}
+
+func TestSplitBuilder_ContinueOnError(t *testing.T) {
+	// Test with a grapheme cluster that's too large
+	input := "test 👩‍👩‍👧‍👧 end"
+	bytelim := uint(10) // Family emoji is 25 bytes, which exceeds limit
+	
+	sb := NewSplitBuilder(bytelim, ContinueOnError(true))
+	
+	var lines []string
+	for _, line := range sb.Split(input) {
+		lines = append(lines, line)
+	}
+	
+	// With continueOnError, we should get some output
+	if len(lines) == 0 {
+		t.Errorf("Expected some lines with ContinueOnError, got none")
+	}
+}
+
+func TestSplitBuilder_BreakGraphemeClusters(t *testing.T) {
+	// Test breaking within a grapheme cluster
+	input := "test 👩‍👩‍👧‍👧 end"
+	bytelim := uint(10)
+	
+	sb := NewSplitBuilder(bytelim, BreakGraphemeClusters(true))
+	
+	var lines []string
+	for _, line := range sb.Split(input) {
+		lines = append(lines, line)
+	}
+	
+	// With breakGraphemeClusters, we should get multiple lines
+	if len(lines) < 2 {
+		t.Errorf("Expected multiple lines with BreakGraphemeClusters, got %d", len(lines))
+	}
+}
+
+func TestSplitBuilder_CombinedOptions(t *testing.T) {
+	input := "Hello world  test"
+	bytelim := uint(10)
+	
+	sb := NewSplitBuilder(bytelim, 
+		TrimTrailingWhiteSpace(true),
+		ContinueOnError(true),
+	)
+	
+	expectedLines := []string{"Hello", "world", "test"}
+	actualLines := []string{}
+	
+	for _, line := range sb.Split(input) {
+		actualLines = append(actualLines, line)
+	}
+	
+	if !reflect.DeepEqual(actualLines, expectedLines) {
+		t.Errorf("Combined options: got %#v; want %#v", actualLines, expectedLines)
+	}
+}
+
+func TestSplitBuilder_EmptyString(t *testing.T) {
+	input := ""
+	bytelim := uint(10)
+	
+	sb := NewSplitBuilder(bytelim)
+	
+	var lines []string
+	for _, line := range sb.Split(input) {
+		lines = append(lines, line)
+	}
+	
+	if len(lines) != 0 {
+		t.Errorf("Expected no lines for empty string, got %d", len(lines))
+	}
+}
+
+func TestSplitBuilder_Unicode(t *testing.T) {
+	input := "クラウンの直接土地を保持している任意の伯爵、男爵"
+	bytelim := uint(30)
+	
+	sb := NewSplitBuilder(bytelim)
+	
+	var lines []string
+	for _, line := range sb.Split(input) {
+		lines = append(lines, line)
+	}
+	
+	// Verify we got multiple lines and each is within byte limit
+	if len(lines) < 2 {
+		t.Errorf("Expected multiple lines for long Unicode text, got %d", len(lines))
+	}
+	
+	for i, line := range lines {
+		if len(line) > int(bytelim) {
+			t.Errorf("Line %d exceeds byte limit: %d > %d", i, len(line), bytelim)
+		}
+	}
+}

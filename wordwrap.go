@@ -79,13 +79,14 @@ func TrimTrailingWhiteSpace(trimTrailingWhiteSpace bool) SplitBuilderOption {
 	}
 }
 
-// Split returns an iterator that yields line index and line content pairs.
+// Split returns an iterator that yields line content and error pairs.
 // The iterator processes the input string according to the SplitBuilder's configuration.
 // The byteLimit parameter specifies the maximum number of bytes per line.
-func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[int, string] {
-	return func(yield func(int, string) bool) {
+// Each iteration returns a line (string) and an error. If there's no error for that line, error will be nil.
+// If ContinueOnError is false (default), iteration stops on the first error.
+func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
 		var workingLine strings.Builder
-		lineIndex := 0
 
 		spacePos := charPos{}
 		lastPos := charPos{}
@@ -94,6 +95,36 @@ func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[int, string] {
 		for gr.Next() {
 			cluster := gr.Str()
 			clusterSize := len(cluster)
+
+			// Check if cluster alone is too large
+			if clusterSize > int(byteLimit) && !sb.breakGraphemeClusters {
+				// Flush working line first if non-empty
+				if workingLine.Len() > 0 {
+					line := workingLine.String()
+					if sb.trimTrailingWhiteSpace {
+						line = strings.TrimRight(line, " \t\n\r")
+					}
+					if !yield(line, nil) {
+						return
+					}
+					workingLine.Reset()
+					spacePos = charPos{}
+					lastPos = charPos{}
+				}
+				
+				// Yield the oversized cluster with error
+				clusterStr := cluster
+				if sb.trimTrailingWhiteSpace {
+					clusterStr = strings.TrimRight(clusterStr, " \t\n\r")
+				}
+				if !yield(clusterStr, ErrGraphemeClusterTooLarge) {
+					return
+				}
+				if !sb.continueOnError {
+					return
+				}
+				continue
+			}
 
 			// If breaking grapheme clusters is allowed and the cluster is too large,
 			// break it down to individual runes
@@ -109,10 +140,9 @@ func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[int, string] {
 						if sb.trimTrailingWhiteSpace {
 							line = strings.TrimRight(line, " \t\n\r")
 						}
-						if !yield(lineIndex, line) {
+						if !yield(line, nil) {
 							return
 						}
-						lineIndex++
 						workingLine.Reset()
 						spacePos = charPos{}
 					}
@@ -136,31 +166,26 @@ func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[int, string] {
 					if sb.trimTrailingWhiteSpace {
 						linePart = strings.TrimRight(linePart, " \t\n\r")
 					}
-					if !yield(lineIndex, linePart) {
+					if !yield(linePart, nil) {
 						return
 					}
-					lineIndex++
 
 					workingLine.Reset()
 					workingLine.WriteString(line[spacePos.pos:])
 				} else {
 					if workingLine.Len() > int(byteLimit) {
 						if lastPos.pos == 0 {
-							// Single grapheme cluster larger than byteLimit
-							if !sb.continueOnError {
-								// In error case, we can't easily pass the error through iter.Seq2
-								// So we just stop iteration
-								return
-							}
-							// Continue on error: just output what we have
+							// Single grapheme cluster larger than byteLimit (shouldn't happen with check above)
 							line := workingLine.String()
 							if sb.trimTrailingWhiteSpace {
 								line = strings.TrimRight(line, " \t\n\r")
 							}
-							if !yield(lineIndex, line) {
+							if !yield(line, ErrGraphemeClusterTooLarge) {
 								return
 							}
-							lineIndex++
+							if !sb.continueOnError {
+								return
+							}
 							workingLine.Reset()
 						} else {
 							line := workingLine.String()
@@ -168,10 +193,9 @@ func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[int, string] {
 							if sb.trimTrailingWhiteSpace {
 								linePart = strings.TrimRight(linePart, " \t\n\r")
 							}
-							if !yield(lineIndex, linePart) {
+							if !yield(linePart, nil) {
 								return
 							}
-							lineIndex++
 
 							workingLine.Reset()
 							workingLine.WriteString(line[lastPos.pos:])
@@ -181,10 +205,9 @@ func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[int, string] {
 						if sb.trimTrailingWhiteSpace {
 							line = strings.TrimRight(line, " \t\n\r")
 						}
-						if !yield(lineIndex, line) {
+						if !yield(line, nil) {
 							return
 						}
-						lineIndex++
 						workingLine.Reset()
 					}
 				}
@@ -196,15 +219,15 @@ func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[int, string] {
 		}
 
 		if workingLine.Len() > 0 {
-			if workingLine.Len() > int(byteLimit) && !sb.continueOnError {
-				// Error case - stop iteration
-				return
-			}
 			line := workingLine.String()
 			if sb.trimTrailingWhiteSpace {
 				line = strings.TrimRight(line, " \t\n\r")
 			}
-			yield(lineIndex, line)
+			var err error
+			if workingLine.Len() > int(byteLimit) {
+				err = ErrGraphemeClusterTooLarge
+			}
+			yield(line, err)
 		}
 	}
 }

@@ -316,7 +316,10 @@ func TestSplitBuilder_DefaultBehavior(t *testing.T) {
 	sb := NewSplitBuilder()
 	
 	var actual []string
-	for _, line := range sb.Split(input, bytelim) {
+	for line, err := range sb.Split(input, bytelim) {
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
 		actual = append(actual, line)
 	}
 
@@ -325,7 +328,7 @@ func TestSplitBuilder_DefaultBehavior(t *testing.T) {
 	}
 }
 
-func TestSplitBuilder_WithIndex(t *testing.T) {
+func TestSplitBuilder_WithErrors(t *testing.T) {
 	input := "Hello world this is a test"
 	bytelim := uint(10)
 	
@@ -333,20 +336,16 @@ func TestSplitBuilder_WithIndex(t *testing.T) {
 	
 	expectedLines := []string{"Hello ", "world ", "this is a ", "test"}
 	actualLines := []string{}
-	actualIndices := []int{}
 	
-	for idx, line := range sb.Split(input, bytelim) {
-		actualIndices = append(actualIndices, idx)
+	for line, err := range sb.Split(input, bytelim) {
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
 		actualLines = append(actualLines, line)
 	}
 	
 	if !reflect.DeepEqual(actualLines, expectedLines) {
 		t.Errorf("Lines mismatch: got %#v; want %#v", actualLines, expectedLines)
-	}
-	
-	expectedIndices := []int{0, 1, 2, 3}
-	if !reflect.DeepEqual(actualIndices, expectedIndices) {
-		t.Errorf("Indices mismatch: got %#v; want %#v", actualIndices, expectedIndices)
 	}
 }
 
@@ -359,7 +358,10 @@ func TestSplitBuilder_TrimTrailingWhiteSpace(t *testing.T) {
 	expectedLines := []string{"Hello", "world", "this is a", "test"}
 	actualLines := []string{}
 	
-	for _, line := range sb.Split(input, bytelim) {
+	for line, err := range sb.Split(input, bytelim) {
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
 		actualLines = append(actualLines, line)
 	}
 	
@@ -377,7 +379,10 @@ func TestSplitBuilder_TrimTrailingWhiteSpace_MultipleSpaces(t *testing.T) {
 	expectedLines := []string{"test", "more", "data"}
 	actualLines := []string{}
 	
-	for _, line := range sb.Split(input, bytelim) {
+	for line, err := range sb.Split(input, bytelim) {
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
 		actualLines = append(actualLines, line)
 	}
 	
@@ -394,13 +399,29 @@ func TestSplitBuilder_ContinueOnError(t *testing.T) {
 	sb := NewSplitBuilder(ContinueOnError(true))
 	
 	var lines []string
-	for _, line := range sb.Split(input, bytelim) {
+	var errs []error
+	for line, err := range sb.Split(input, bytelim) {
 		lines = append(lines, line)
+		errs = append(errs, err)
 	}
 	
-	// With continueOnError, we should get some output
+	// With continueOnError, we should get some output and at least one error
 	if len(lines) == 0 {
 		t.Errorf("Expected some lines with ContinueOnError, got none")
+	}
+	
+	// Check that we got at least one error
+	hasError := false
+	for _, e := range errs {
+		if e != nil {
+			hasError = true
+			if !errors.Is(e, ErrGraphemeClusterTooLarge) {
+				t.Errorf("Expected ErrGraphemeClusterTooLarge, got %v", e)
+			}
+		}
+	}
+	if !hasError {
+		t.Errorf("Expected at least one error with oversized grapheme cluster")
 	}
 }
 
@@ -412,7 +433,10 @@ func TestSplitBuilder_BreakGraphemeClusters(t *testing.T) {
 	sb := NewSplitBuilder(BreakGraphemeClusters(true))
 	
 	var lines []string
-	for _, line := range sb.Split(input, bytelim) {
+	for line, err := range sb.Split(input, bytelim) {
+		if err != nil {
+			t.Errorf("Unexpected error with BreakGraphemeClusters: %v", err)
+		}
 		lines = append(lines, line)
 	}
 	
@@ -434,7 +458,10 @@ func TestSplitBuilder_CombinedOptions(t *testing.T) {
 	expectedLines := []string{"Hello", "world", "test"}
 	actualLines := []string{}
 	
-	for _, line := range sb.Split(input, bytelim) {
+	for line, err := range sb.Split(input, bytelim) {
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
 		actualLines = append(actualLines, line)
 	}
 	
@@ -450,7 +477,10 @@ func TestSplitBuilder_EmptyString(t *testing.T) {
 	sb := NewSplitBuilder()
 	
 	var lines []string
-	for _, line := range sb.Split(input, bytelim) {
+	for line, err := range sb.Split(input, bytelim) {
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
 		lines = append(lines, line)
 	}
 	
@@ -466,7 +496,10 @@ func TestSplitBuilder_Unicode(t *testing.T) {
 	sb := NewSplitBuilder()
 	
 	var lines []string
-	for _, line := range sb.Split(input, bytelim) {
+	for line, err := range sb.Split(input, bytelim) {
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
 		lines = append(lines, line)
 	}
 	
@@ -479,5 +512,43 @@ func TestSplitBuilder_Unicode(t *testing.T) {
 		if len(line) > int(bytelim) {
 			t.Errorf("Line %d exceeds byte limit: %d > %d", i, len(line), bytelim)
 		}
+	}
+}
+
+func TestSplitBuilder_StopOnError(t *testing.T) {
+	// Test that iteration stops on error when ContinueOnError is false (default)
+	input := "test 👩‍👩‍👧‍👧 end"
+	bytelim := uint(10) // Family emoji is 25 bytes, which exceeds limit
+	
+	sb := NewSplitBuilder() // Default: ContinueOnError(false)
+	
+	var lines []string
+	var errs []error
+	for line, err := range sb.Split(input, bytelim) {
+		lines = append(lines, line)
+		errs = append(errs, err)
+		if err != nil {
+			// When we get an error, iteration should stop after this
+			break
+		}
+	}
+	
+	// We should get at least the line with the error
+	if len(lines) == 0 {
+		t.Errorf("Expected at least one line before error")
+	}
+	
+	// Check that we got an error
+	hasError := false
+	for _, e := range errs {
+		if e != nil {
+			hasError = true
+			if !errors.Is(e, ErrGraphemeClusterTooLarge) {
+				t.Errorf("Expected ErrGraphemeClusterTooLarge, got %v", e)
+			}
+		}
+	}
+	if !hasError {
+		t.Errorf("Expected an error with oversized grapheme cluster")
 	}
 }

@@ -42,6 +42,30 @@ func TestSplitString(t *testing.T) {
 				"전체 연령 하고' 구호 '을 빚을 해야 하는 ",
 				"경우, 상속인 이 지불 에 대한 자신의 상속을 ",
 				"가져야한다 ' 구호 ' 의 고대 규모의 "}, 60},
+
+		// ZWJ sequences - family emoji
+		{"Hello 👩‍👩‍👧‍👧 world",
+			[]string{"Hello 👩‍👩‍👧‍👧 ", "world"}, 32},
+
+		// ZWJ sequences - person with Christmas tree
+		{"Test 🧑‍🎄 emoji here",
+			[]string{"Test 🧑‍🎄 ", "emoji here"}, 20},
+
+		// Long word with ZWJ emoji (no spaces to break on)
+		{"abcdefgh👩‍👩‍👧‍👧ijklmn",
+			[]string{"abcdefgh", "👩‍👩‍👧‍👧ijklm", "n"}, 30},
+
+		// Multiple ZWJ emojis
+		{"🧑‍🎄 and 👩‍👩‍👧‍👧 test",
+			[]string{"🧑‍🎄 and ", "👩‍👩‍👧‍👧 ", "test"}, 30},
+
+		// ZWJ emoji at the start
+		{"👩‍👩‍👧‍👧 family",
+			[]string{"👩‍👩‍👧‍👧 ", "family"}, 30},
+
+		// ZWJ emoji at the end
+		{"family 👩‍👩‍👧‍👧",
+			[]string{"family ", "👩‍👩‍👧‍👧"}, 30},
 	}
 
 	for _, test := range tests {
@@ -50,5 +74,40 @@ func TestSplitString(t *testing.T) {
 		if !reflect.DeepEqual(actual, test.output) {
 			t.Errorf(`SplitString(%#v) = %#v; want %#v`, test.input, actual, test.output)
 		}
+	}
+}
+
+func TestSplitStringPanic(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		bytelim uint
+	}{
+		{
+			name:    "Family emoji too large",
+			input:   "👩‍👩‍👧‍👧",
+			bytelim: 20, // Family emoji is 25 bytes
+		},
+		{
+			name:    "Person with tree emoji too large",
+			input:   "🧑‍🎄",
+			bytelim: 8, // Person with tree is 11 bytes
+		},
+		{
+			name:    "Grapheme cluster in word too large",
+			input:   "test👩‍👩‍👧‍👧end",
+			bytelim: 20, // Cannot break within the emoji
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("SplitString(%#v, %d) should have panicked", test.input, test.bytelim)
+				}
+			}()
+			SplitString(test.input, test.bytelim)
+		})
 	}
 }

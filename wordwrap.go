@@ -5,6 +5,8 @@ package wordwrap
 import (
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/rivo/uniseg"
 )
 
 type charPos struct {
@@ -12,12 +14,13 @@ type charPos struct {
 }
 
 // SplitString splits a string at a certain number of bytes without breaking
-// UTF-8 runes and on Unicode space characters when possible.
+// UTF-8 runes, grapheme clusters, and on Unicode space characters when possible.
 //
-// SplitString will panic if it is forced to split a multibyte rune.
+// SplitString will panic if it is forced to split a grapheme cluster that is
+// larger than the byte limit.
 //
-// For example if the rune `し` (3 bytes) is given, yet we ask it to break on a
-// byte limit of 2, it will panic.
+// For example if the grapheme cluster `👩‍👩‍👧‍👧` (25 bytes) is given, yet we ask
+// it to break on a byte limit of 20, it will panic.
 func SplitString(s string, byteLimit uint) []string {
 	workingLine := ""
 	finishedLines := []string{}
@@ -25,13 +28,20 @@ func SplitString(s string, byteLimit uint) []string {
 	spacePos := charPos{}
 	lastPos := charPos{}
 
-	for _, r := range s {
-		rl := utf8.RuneLen(r)
+	// Use grapheme cluster iterator
+	gr := uniseg.NewGraphemes(s)
+	for gr.Next() {
+		cluster := gr.Str()
+		clusterSize := len(cluster)
 
-		workingLine += string(r)
+		workingLine += cluster
 
-		if unicode.IsSpace(r) {
-			spacePos = charPos{len(workingLine), rl}
+		// Check if the cluster contains a space (check first rune)
+		if len(cluster) > 0 {
+			firstRune, _ := utf8.DecodeRuneInString(cluster)
+			if unicode.IsSpace(firstRune) {
+				spacePos = charPos{len(workingLine), clusterSize}
+			}
 		}
 
 		if len(workingLine) >= int(byteLimit) {
@@ -41,6 +51,11 @@ func SplitString(s string, byteLimit uint) []string {
 				workingLine = workingLine[spacePos.pos:]
 			} else {
 				if len(workingLine) > int(byteLimit) {
+					// If there's no valid break point (lastPos.pos is 0),
+					// it means we have a single grapheme cluster larger than byteLimit
+					if lastPos.pos == 0 {
+						panic("attempted to cut grapheme cluster")
+					}
 					finishedLines = append(finishedLines, workingLine[0:lastPos.pos])
 					workingLine = workingLine[lastPos.pos:]
 				} else {
@@ -50,13 +65,13 @@ func SplitString(s string, byteLimit uint) []string {
 			}
 
 			if len(finishedLines[len(finishedLines)-1]) > int(byteLimit) {
-				panic("attempted to cut character")
+				panic("attempted to cut grapheme cluster")
 			}
 
 			spacePos = charPos{}
 		}
 
-		lastPos = charPos{len(workingLine), rl}
+		lastPos = charPos{len(workingLine), clusterSize}
 	}
 
 	if workingLine != "" {

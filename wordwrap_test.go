@@ -117,7 +117,11 @@ func TestSplitString(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		actual := SplitString(test.input, test.bytelim)
+		actual, err := SplitString(test.input, test.bytelim)
+		if err != nil {
+			t.Errorf(`SplitString(%#v) returned unexpected error: %v`, test.input, err)
+			continue
+		}
 
 		if !reflect.DeepEqual(actual, test.output) {
 			t.Errorf(`SplitString(%#v) = %#v; want %#v`, test.input, actual, test.output)
@@ -125,7 +129,7 @@ func TestSplitString(t *testing.T) {
 	}
 }
 
-func TestSplitStringPanic(t *testing.T) {
+func TestSplitStringError(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
@@ -185,12 +189,13 @@ func TestSplitStringPanic(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			defer func() {
-				if r := recover(); r == nil {
-					t.Errorf("SplitString(%#v, %d) should have panicked", test.input, test.bytelim)
-				}
-			}()
-			SplitString(test.input, test.bytelim)
+			_, err := SplitString(test.input, test.bytelim)
+			if err == nil {
+				t.Errorf("SplitString(%#v, %d) should have returned an error", test.input, test.bytelim)
+			}
+			if err != ErrGraphemeClusterTooLarge {
+				t.Errorf("SplitString(%#v, %d) returned wrong error: got %v, want %v", test.input, test.bytelim, err, ErrGraphemeClusterTooLarge)
+			}
 		})
 	}
 }

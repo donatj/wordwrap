@@ -16,6 +16,7 @@ This is useful for protocols where message size is limited by bytes.
 English:
 
 ```go
+// import "log"
 wrapped, err := wordwrap.WrapString(`If any earl, baron, or other person that holds lands directly of the Crown, for military service, shall die, and at his death his heir shall be of full age and owe a 'relief', the heir shall have his inheritance on payment of the ancient scale of 'relief'.`, 60)
 if err != nil {
     log.Fatal(err)
@@ -39,6 +40,7 @@ the ancient scale of 'relief'.                               // 30 bytes
 Japanese:
 
 ```go
+// import "log"
 wrapped, err := wordwrap.WrapString(`クラウンの直接土地を保持している任意の伯爵、男爵、または他の人は、兵役のために、死ぬ、と彼の死で彼の後継者は成年であることと「救済」を借りなければならない場合は、相続人は、支払いの彼の継承をもたなければなりません「救済」の古代規模の。`, 60)
 if err != nil {
     log.Fatal(err)
@@ -62,6 +64,7 @@ Becomes:
 Korean:
 
 ```go
+// import "log"
 wrapped, err := wordwrap.WrapString(`크라운 의 직접 토지 를 보유하고 있는 백작 , 남작 , 또는 다른 사람이 군 복무 를 위해 죽을 것이요, 그의 죽음 에 그의 후계자 가 전체 연령 하고' 구호 '을 빚을 해야 하는 경우, 상속인 이 지불 에 대한 자신의 상속을 가져야한다 ' 구호 ' 의 고대 규모의 `, 60)
 if err != nil {
     log.Fatal(err)
@@ -85,6 +88,7 @@ Becomes:
 Grapheme Clusters:
 
 ```go
+// import "log"
 wrapped, err := wordwrap.WrapString(`Hello 👩‍👩‍👧‍👧 family 🧑‍🎄 celebrating café with naïve résumé क्षि`, 30)
 if err != nil {
     log.Fatal(err)
@@ -109,6 +113,7 @@ The library returns an `ErrGraphemeClusterTooLarge` error when a grapheme cluste
 Single Japanese character on 2-byte limit:
 
 ```go
+// import "errors"
 _, err := wordwrap.SplitString("し", 2)  // error: し is 3 bytes
 if errors.Is(err, wordwrap.ErrGraphemeClusterTooLarge) {
     // Handle the error

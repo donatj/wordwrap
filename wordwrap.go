@@ -189,13 +189,6 @@ func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[int, string] {
 					}
 				}
 
-				if !sb.continueOnError {
-					// Check if the last line we just yielded was too large
-					// This would indicate a grapheme cluster error
-					// We need a way to track this, but for now we'll skip this check
-					// as it complicates the iterator pattern
-				}
-
 				spacePos = charPos{}
 			}
 

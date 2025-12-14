@@ -67,3 +67,49 @@ Becomes:
 경우, 상속인 이 지불 에 대한 자신의 상속을 // 60 bytes
 가져야한다 ' 구호 ' 의 고대 규모의         // 47 bytes
 ```
+
+---
+
+Grapheme Clusters:
+
+```go
+fmt.Println(wordwrap.WrapString(`Hello 👩‍👩‍👧‍👧 family 🧑‍🎄 celebrating café with naïve résumé 🏳️‍🌈 pride`, 30))
+```
+
+Becomes:
+
+```
+Hello                                                        // 6 bytes
+👩‍👩‍👧‍👧                                    // 26 bytes
+family 🧑‍🎄                                           // 19 bytes
+celebrating café with naïve                                // 30 bytes
+résumé 🏳️‍🌈 pride                                // 29 bytes
+```
+
+### Panics
+
+The library panics when a grapheme cluster exceeds the byte limit.
+
+Single Japanese character on 2-byte limit:
+
+```go
+wordwrap.SplitString("し", 2)  // panics: し is 3 bytes
+```
+
+Family emoji on 20-byte limit:
+
+```go
+wordwrap.SplitString("👩‍👩‍👧‍👧", 20)  // panics: emoji is 25 bytes
+```
+
+Person with tree on 8-byte limit:
+
+```go
+wordwrap.SplitString("🧑‍🎄", 8)  // panics: emoji is 11 bytes
+```
+
+String ending with oversized cluster:
+
+```go
+wordwrap.SplitString("test 👩‍👩‍👧‍👧", 20)  // panics: emoji is 25 bytes
+```

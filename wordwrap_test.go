@@ -553,47 +553,47 @@ func TestSplitBuilder_StopOnError(t *testing.T) {
 	}
 }
 
-func TestSplitBuilder_SplitToSlice(t *testing.T) {
+func TestSplitBuilder_SplitString(t *testing.T) {
 	input := "Hello world this is a test"
 	bytelim := uint(10)
 	
 	sb := NewSplitBuilder()
 	
-	lines, err := sb.SplitToSlice(input, bytelim)
+	lines, err := sb.SplitString(input, bytelim)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	
 	expected := []string{"Hello ", "world ", "this is a ", "test"}
 	if !reflect.DeepEqual(lines, expected) {
-		t.Errorf("SplitToSlice: got %#v; want %#v", lines, expected)
+		t.Errorf("SplitString: got %#v; want %#v", lines, expected)
 	}
 }
 
-func TestSplitBuilder_SplitToSliceWithTrim(t *testing.T) {
+func TestSplitBuilder_SplitStringWithTrim(t *testing.T) {
 	input := "Hello world this is a test"
 	bytelim := uint(10)
 	
 	sb := NewSplitBuilder(TrimTrailingWhiteSpace(true))
 	
-	lines, err := sb.SplitToSlice(input, bytelim)
+	lines, err := sb.SplitString(input, bytelim)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	
 	expected := []string{"Hello", "world", "this is a", "test"}
 	if !reflect.DeepEqual(lines, expected) {
-		t.Errorf("SplitToSlice with trim: got %#v; want %#v", lines, expected)
+		t.Errorf("SplitString with trim: got %#v; want %#v", lines, expected)
 	}
 }
 
-func TestSplitBuilder_SplitToSliceWithError(t *testing.T) {
+func TestSplitBuilder_SplitStringWithError(t *testing.T) {
 	input := "test 👩‍👩‍👧‍👧 end"
 	bytelim := uint(10)
 	
 	sb := NewSplitBuilder() // ContinueOnError(false)
 	
-	lines, err := sb.SplitToSlice(input, bytelim)
+	lines, err := sb.SplitString(input, bytelim)
 	if err == nil {
 		t.Errorf("Expected error but got none")
 	}
@@ -604,23 +604,6 @@ func TestSplitBuilder_SplitToSliceWithError(t *testing.T) {
 	// Should have stopped after error
 	if len(lines) < 1 {
 		t.Errorf("Expected at least one line")
-	}
-}
-
-func TestSplitBuilder_SplitToString(t *testing.T) {
-	input := "Hello world this is a test"
-	bytelim := uint(10)
-	
-	sb := NewSplitBuilder(TrimTrailingWhiteSpace(true))
-	
-	result, err := sb.SplitToString(input, bytelim)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	
-	expected := "Hello\nworld\nthis is a\ntest"
-	if result != expected {
-		t.Errorf("SplitToString: got %#v; want %#v", result, expected)
 	}
 }
 

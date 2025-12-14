@@ -247,11 +247,11 @@ func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[string, error]
 	}
 }
 
-// SplitToSlice splits a string and returns the lines as a slice.
+// SplitString splits a string and returns the lines as a slice.
+// It implements the same functionality as the global SplitString function
+// while respecting the SplitBuilder's configured flags.
 // It returns an error if any line encounters an error during splitting.
-// If ContinueOnError is true, it collects all lines even if errors occur,
-// but still returns the first error encountered.
-func (sb *SplitBuilder) SplitToSlice(s string, byteLimit uint) ([]string, error) {
+func (sb *SplitBuilder) SplitString(s string, byteLimit uint) ([]string, error) {
 	var lines []string
 	var firstErr error
 	
@@ -268,16 +268,6 @@ func (sb *SplitBuilder) SplitToSlice(s string, byteLimit uint) ([]string, error)
 	return lines, firstErr
 }
 
-// SplitToString splits a string and joins the lines with newline characters.
-// It returns an error if any line encounters an error during splitting.
-func (sb *SplitBuilder) SplitToString(s string, byteLimit uint) (string, error) {
-	lines, err := sb.SplitToSlice(s, byteLimit)
-	if err != nil {
-		return "", err
-	}
-	return join(lines, "\n"), nil
-}
-
 // SplitString splits a string at a certain number of bytes without breaking
 // UTF-8 runes, grapheme clusters, and on Unicode space characters when possible.
 //
@@ -286,70 +276,10 @@ func (sb *SplitBuilder) SplitToString(s string, byteLimit uint) (string, error) 
 //
 // For example if the grapheme cluster `👩‍👩‍👧‍👧` (25 bytes) is given, yet we ask
 // it to break on a byte limit of 20, it will return an error.
+//
+// This function uses the DefaultSplitBuilder with settings that match the original behavior.
 func SplitString(s string, byteLimit uint) ([]string, error) {
-	var workingLine strings.Builder
-	finishedLines := []string{}
-
-	spacePos := charPos{}
-	lastPos := charPos{}
-
-	// Use grapheme cluster iterator
-	gr := uniseg.NewGraphemes(s)
-	for gr.Next() {
-		cluster := gr.Str()
-		clusterSize := len(cluster)
-
-		workingLine.WriteString(cluster)
-
-		// Check if the cluster contains a space (check first rune)
-		firstRune, _ := utf8.DecodeRuneInString(cluster)
-		if unicode.IsSpace(firstRune) {
-			spacePos = charPos{workingLine.Len(), clusterSize}
-		}
-
-		if workingLine.Len() >= int(byteLimit) {
-			if spacePos.size > 0 {
-				line := workingLine.String()
-				finishedLines = append(finishedLines, line[0:spacePos.pos])
-
-				workingLine.Reset()
-				workingLine.WriteString(line[spacePos.pos:])
-			} else {
-				if workingLine.Len() > int(byteLimit) {
-					// If there's no valid break point (lastPos.pos is 0),
-					// it means we have a single grapheme cluster larger than byteLimit
-					if lastPos.pos == 0 {
-						return nil, ErrGraphemeClusterTooLarge
-					}
-					line := workingLine.String()
-					finishedLines = append(finishedLines, line[0:lastPos.pos])
-					
-					workingLine.Reset()
-					workingLine.WriteString(line[lastPos.pos:])
-				} else {
-					finishedLines = append(finishedLines, workingLine.String())
-					workingLine.Reset()
-				}
-			}
-
-			if len(finishedLines[len(finishedLines)-1]) > int(byteLimit) {
-				return nil, ErrGraphemeClusterTooLarge
-			}
-
-			spacePos = charPos{}
-		}
-
-		lastPos = charPos{workingLine.Len(), clusterSize}
-	}
-
-	if workingLine.Len() > 0 {
-		if workingLine.Len() > int(byteLimit) {
-			return nil, ErrGraphemeClusterTooLarge
-		}
-		finishedLines = append(finishedLines, workingLine.String())
-	}
-
-	return finishedLines, nil
+	return DefaultSplitBuilder.SplitString(s, byteLimit)
 }
 
 // WrapString splits a string as with SplitString and joins together with a \n

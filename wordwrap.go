@@ -30,6 +30,14 @@ type SplitBuilder struct {
 	trimTrailingWhiteSpace  bool
 }
 
+// DefaultSplitBuilder is the global default SplitBuilder used by package-level Split function.
+// It can be modified to change default splitting behavior globally.
+var DefaultSplitBuilder = &SplitBuilder{
+	continueOnError:         false,
+	breakGraphemeClusters:   false,
+	trimTrailingWhiteSpace:  false,
+}
+
 // SplitBuilderOption is a functional option for configuring a SplitBuilder.
 type SplitBuilderOption func(*SplitBuilder)
 
@@ -77,6 +85,12 @@ func TrimTrailingWhiteSpace(trimTrailingWhiteSpace bool) SplitBuilderOption {
 	return func(sb *SplitBuilder) {
 		sb.trimTrailingWhiteSpace = trimTrailingWhiteSpace
 	}
+}
+
+// Split is a package-level function that uses DefaultSplitBuilder to split a string.
+// It returns an iterator that yields line content and error pairs.
+func Split(s string, byteLimit uint) iter.Seq2[string, error] {
+	return DefaultSplitBuilder.Split(s, byteLimit)
 }
 
 // Split returns an iterator that yields line content and error pairs.
@@ -231,6 +245,37 @@ func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[string, error]
 			yield(line, err)
 		}
 	}
+}
+
+// SplitToSlice splits a string and returns the lines as a slice.
+// It returns an error if any line encounters an error during splitting.
+// If ContinueOnError is true, it collects all lines even if errors occur,
+// but still returns the first error encountered.
+func (sb *SplitBuilder) SplitToSlice(s string, byteLimit uint) ([]string, error) {
+	var lines []string
+	var firstErr error
+	
+	for line, err := range sb.Split(s, byteLimit) {
+		lines = append(lines, line)
+		if err != nil && firstErr == nil {
+			firstErr = err
+			if !sb.continueOnError {
+				return lines, firstErr
+			}
+		}
+	}
+	
+	return lines, firstErr
+}
+
+// SplitToString splits a string and joins the lines with newline characters.
+// It returns an error if any line encounters an error during splitting.
+func (sb *SplitBuilder) SplitToString(s string, byteLimit uint) (string, error) {
+	lines, err := sb.SplitToSlice(s, byteLimit)
+	if err != nil {
+		return "", err
+	}
+	return join(lines, "\n"), nil
 }
 
 // SplitString splits a string at a certain number of bytes without breaking

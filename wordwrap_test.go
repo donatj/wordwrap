@@ -552,3 +552,120 @@ func TestSplitBuilder_StopOnError(t *testing.T) {
 		t.Errorf("Expected an error with oversized grapheme cluster")
 	}
 }
+
+func TestSplitBuilder_SplitToSlice(t *testing.T) {
+	input := "Hello world this is a test"
+	bytelim := uint(10)
+	
+	sb := NewSplitBuilder()
+	
+	lines, err := sb.SplitToSlice(input, bytelim)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	
+	expected := []string{"Hello ", "world ", "this is a ", "test"}
+	if !reflect.DeepEqual(lines, expected) {
+		t.Errorf("SplitToSlice: got %#v; want %#v", lines, expected)
+	}
+}
+
+func TestSplitBuilder_SplitToSliceWithTrim(t *testing.T) {
+	input := "Hello world this is a test"
+	bytelim := uint(10)
+	
+	sb := NewSplitBuilder(TrimTrailingWhiteSpace(true))
+	
+	lines, err := sb.SplitToSlice(input, bytelim)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	
+	expected := []string{"Hello", "world", "this is a", "test"}
+	if !reflect.DeepEqual(lines, expected) {
+		t.Errorf("SplitToSlice with trim: got %#v; want %#v", lines, expected)
+	}
+}
+
+func TestSplitBuilder_SplitToSliceWithError(t *testing.T) {
+	input := "test 👩‍👩‍👧‍👧 end"
+	bytelim := uint(10)
+	
+	sb := NewSplitBuilder() // ContinueOnError(false)
+	
+	lines, err := sb.SplitToSlice(input, bytelim)
+	if err == nil {
+		t.Errorf("Expected error but got none")
+	}
+	if !errors.Is(err, ErrGraphemeClusterTooLarge) {
+		t.Errorf("Expected ErrGraphemeClusterTooLarge, got %v", err)
+	}
+	
+	// Should have stopped after error
+	if len(lines) < 1 {
+		t.Errorf("Expected at least one line")
+	}
+}
+
+func TestSplitBuilder_SplitToString(t *testing.T) {
+	input := "Hello world this is a test"
+	bytelim := uint(10)
+	
+	sb := NewSplitBuilder(TrimTrailingWhiteSpace(true))
+	
+	result, err := sb.SplitToString(input, bytelim)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	
+	expected := "Hello\nworld\nthis is a\ntest"
+	if result != expected {
+		t.Errorf("SplitToString: got %#v; want %#v", result, expected)
+	}
+}
+
+func TestDefaultSplitBuilder(t *testing.T) {
+	// Test that the global Split function uses DefaultSplitBuilder
+	input := "Hello world test"
+	bytelim := uint(10)
+	
+	var lines []string
+	for line, err := range Split(input, bytelim) {
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		lines = append(lines, line)
+	}
+	
+	if len(lines) == 0 {
+		t.Errorf("Expected some lines from global Split function")
+	}
+}
+
+func TestDefaultSplitBuilder_Modify(t *testing.T) {
+	// Save original state
+	orig := *DefaultSplitBuilder
+	defer func() {
+		*DefaultSplitBuilder = orig
+	}()
+	
+	// Modify global builder
+	DefaultSplitBuilder.trimTrailingWhiteSpace = true
+	
+	input := "Hello world test"
+	bytelim := uint(10)
+	
+	var lines []string
+	for line, err := range Split(input, bytelim) {
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		lines = append(lines, line)
+	}
+	
+	// Should have trimmed trailing whitespace
+	expected := []string{"Hello", "world", "test"}
+	if !reflect.DeepEqual(lines, expected) {
+		t.Errorf("Modified DefaultSplitBuilder: got %#v; want %#v", lines, expected)
+	}
+}

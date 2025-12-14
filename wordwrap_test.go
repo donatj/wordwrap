@@ -313,10 +313,10 @@ func TestSplitBuilder_DefaultBehavior(t *testing.T) {
 	bytelim := uint(4)
 	expected := []string{"asda", "sd ", "asd ", "asda", "sd"}
 
-	sb := NewSplitBuilder(bytelim)
+	sb := NewSplitBuilder()
 	
 	var actual []string
-	for _, line := range sb.Split(input) {
+	for _, line := range sb.Split(input, bytelim) {
 		actual = append(actual, line)
 	}
 
@@ -329,13 +329,13 @@ func TestSplitBuilder_WithIndex(t *testing.T) {
 	input := "Hello world this is a test"
 	bytelim := uint(10)
 	
-	sb := NewSplitBuilder(bytelim)
+	sb := NewSplitBuilder()
 	
 	expectedLines := []string{"Hello ", "world ", "this is a ", "test"}
 	actualLines := []string{}
 	actualIndices := []int{}
 	
-	for idx, line := range sb.Split(input) {
+	for idx, line := range sb.Split(input, bytelim) {
 		actualIndices = append(actualIndices, idx)
 		actualLines = append(actualLines, line)
 	}
@@ -354,12 +354,12 @@ func TestSplitBuilder_TrimTrailingWhiteSpace(t *testing.T) {
 	input := "Hello world this is a test"
 	bytelim := uint(10)
 	
-	sb := NewSplitBuilder(bytelim, TrimTrailingWhiteSpace(true))
+	sb := NewSplitBuilder(TrimTrailingWhiteSpace(true))
 	
 	expectedLines := []string{"Hello", "world", "this is a", "test"}
 	actualLines := []string{}
 	
-	for _, line := range sb.Split(input) {
+	for _, line := range sb.Split(input, bytelim) {
 		actualLines = append(actualLines, line)
 	}
 	
@@ -372,12 +372,12 @@ func TestSplitBuilder_TrimTrailingWhiteSpace_MultipleSpaces(t *testing.T) {
 	input := "test   more   data"
 	bytelim := uint(10)
 	
-	sb := NewSplitBuilder(bytelim, TrimTrailingWhiteSpace(true))
+	sb := NewSplitBuilder(TrimTrailingWhiteSpace(true))
 	
 	expectedLines := []string{"test", "more", "data"}
 	actualLines := []string{}
 	
-	for _, line := range sb.Split(input) {
+	for _, line := range sb.Split(input, bytelim) {
 		actualLines = append(actualLines, line)
 	}
 	
@@ -391,10 +391,10 @@ func TestSplitBuilder_ContinueOnError(t *testing.T) {
 	input := "test 👩‍👩‍👧‍👧 end"
 	bytelim := uint(10) // Family emoji is 25 bytes, which exceeds limit
 	
-	sb := NewSplitBuilder(bytelim, ContinueOnError(true))
+	sb := NewSplitBuilder(ContinueOnError(true))
 	
 	var lines []string
-	for _, line := range sb.Split(input) {
+	for _, line := range sb.Split(input, bytelim) {
 		lines = append(lines, line)
 	}
 	
@@ -409,10 +409,10 @@ func TestSplitBuilder_BreakGraphemeClusters(t *testing.T) {
 	input := "test 👩‍👩‍👧‍👧 end"
 	bytelim := uint(10)
 	
-	sb := NewSplitBuilder(bytelim, BreakGraphemeClusters(true))
+	sb := NewSplitBuilder(BreakGraphemeClusters(true))
 	
 	var lines []string
-	for _, line := range sb.Split(input) {
+	for _, line := range sb.Split(input, bytelim) {
 		lines = append(lines, line)
 	}
 	
@@ -426,7 +426,7 @@ func TestSplitBuilder_CombinedOptions(t *testing.T) {
 	input := "Hello world  test"
 	bytelim := uint(10)
 	
-	sb := NewSplitBuilder(bytelim, 
+	sb := NewSplitBuilder(
 		TrimTrailingWhiteSpace(true),
 		ContinueOnError(true),
 	)
@@ -434,7 +434,7 @@ func TestSplitBuilder_CombinedOptions(t *testing.T) {
 	expectedLines := []string{"Hello", "world", "test"}
 	actualLines := []string{}
 	
-	for _, line := range sb.Split(input) {
+	for _, line := range sb.Split(input, bytelim) {
 		actualLines = append(actualLines, line)
 	}
 	
@@ -447,10 +447,10 @@ func TestSplitBuilder_EmptyString(t *testing.T) {
 	input := ""
 	bytelim := uint(10)
 	
-	sb := NewSplitBuilder(bytelim)
+	sb := NewSplitBuilder()
 	
 	var lines []string
-	for _, line := range sb.Split(input) {
+	for _, line := range sb.Split(input, bytelim) {
 		lines = append(lines, line)
 	}
 	
@@ -463,10 +463,10 @@ func TestSplitBuilder_Unicode(t *testing.T) {
 	input := "クラウンの直接土地を保持している任意の伯爵、男爵"
 	bytelim := uint(30)
 	
-	sb := NewSplitBuilder(bytelim)
+	sb := NewSplitBuilder()
 	
 	var lines []string
-	for _, line := range sb.Split(input) {
+	for _, line := range sb.Split(input, bytelim) {
 		lines = append(lines, line)
 	}
 	

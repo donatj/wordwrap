@@ -25,7 +25,6 @@ type charPos struct {
 
 // SplitBuilder provides a configurable string splitter with functional options.
 type SplitBuilder struct {
-	byteLimit               uint
 	continueOnError         bool
 	breakGraphemeClusters   bool
 	trimTrailingWhiteSpace  bool
@@ -34,14 +33,13 @@ type SplitBuilder struct {
 // SplitBuilderOption is a functional option for configuring a SplitBuilder.
 type SplitBuilderOption func(*SplitBuilder)
 
-// NewSplitBuilder creates a new SplitBuilder with the given byte limit and options.
+// NewSplitBuilder creates a new SplitBuilder with the given options.
 // By default, it matches the behavior of SplitString:
 //   - continueOnError: false (returns error on grapheme cluster too large)
 //   - breakGraphemeClusters: false (preserves grapheme clusters)
 //   - trimTrailingWhiteSpace: false (keeps trailing whitespace)
-func NewSplitBuilder(byteLimit uint, opts ...SplitBuilderOption) *SplitBuilder {
+func NewSplitBuilder(opts ...SplitBuilderOption) *SplitBuilder {
 	sb := &SplitBuilder{
-		byteLimit:               byteLimit,
 		continueOnError:         false,
 		breakGraphemeClusters:   false,
 		trimTrailingWhiteSpace:  false,
@@ -83,7 +81,8 @@ func TrimTrailingWhiteSpace(trimTrailingWhiteSpace bool) SplitBuilderOption {
 
 // Split returns an iterator that yields line index and line content pairs.
 // The iterator processes the input string according to the SplitBuilder's configuration.
-func (sb *SplitBuilder) Split(s string) iter.Seq2[int, string] {
+// The byteLimit parameter specifies the maximum number of bytes per line.
+func (sb *SplitBuilder) Split(s string, byteLimit uint) iter.Seq2[int, string] {
 	return func(yield func(int, string) bool) {
 		var workingLine strings.Builder
 		lineIndex := 0
@@ -98,14 +97,14 @@ func (sb *SplitBuilder) Split(s string) iter.Seq2[int, string] {
 
 			// If breaking grapheme clusters is allowed and the cluster is too large,
 			// break it down to individual runes
-			if sb.breakGraphemeClusters && clusterSize > int(sb.byteLimit) {
+			if sb.breakGraphemeClusters && clusterSize > int(byteLimit) {
 				for _, r := range cluster {
 					runeBytes := []byte(string(r))
 					runeSize := len(runeBytes)
 					
 					workingLine.Write(runeBytes)
 					
-					if workingLine.Len() >= int(sb.byteLimit) {
+					if workingLine.Len() >= int(byteLimit) {
 						line := workingLine.String()
 						if sb.trimTrailingWhiteSpace {
 							line = strings.TrimRight(line, " \t\n\r")
@@ -130,7 +129,7 @@ func (sb *SplitBuilder) Split(s string) iter.Seq2[int, string] {
 				spacePos = charPos{workingLine.Len(), clusterSize}
 			}
 
-			if workingLine.Len() >= int(sb.byteLimit) {
+			if workingLine.Len() >= int(byteLimit) {
 				if spacePos.size > 0 {
 					line := workingLine.String()
 					linePart := line[0:spacePos.pos]
@@ -145,7 +144,7 @@ func (sb *SplitBuilder) Split(s string) iter.Seq2[int, string] {
 					workingLine.Reset()
 					workingLine.WriteString(line[spacePos.pos:])
 				} else {
-					if workingLine.Len() > int(sb.byteLimit) {
+					if workingLine.Len() > int(byteLimit) {
 						if lastPos.pos == 0 {
 							// Single grapheme cluster larger than byteLimit
 							if !sb.continueOnError {
@@ -204,7 +203,7 @@ func (sb *SplitBuilder) Split(s string) iter.Seq2[int, string] {
 		}
 
 		if workingLine.Len() > 0 {
-			if workingLine.Len() > int(sb.byteLimit) && !sb.continueOnError {
+			if workingLine.Len() > int(byteLimit) && !sb.continueOnError {
 				// Error case - stop iteration
 				return
 			}

@@ -38,11 +38,9 @@ func SplitString(s string, byteLimit uint) []string {
 		workingLine.WriteString(cluster)
 
 		// Check if the cluster contains a space (check first rune)
-		if len(cluster) > 0 {
-			firstRune, _ := utf8.DecodeRuneInString(cluster)
-			if unicode.IsSpace(firstRune) {
-				spacePos = charPos{workingLine.Len(), clusterSize}
-			}
+		firstRune, _ := utf8.DecodeRuneInString(cluster)
+		if unicode.IsSpace(firstRune) {
+			spacePos = charPos{workingLine.Len(), clusterSize}
 		}
 
 		if workingLine.Len() >= int(byteLimit) {
@@ -81,6 +79,9 @@ func SplitString(s string, byteLimit uint) []string {
 	}
 
 	if workingLine.Len() > 0 {
+		if workingLine.Len() > int(byteLimit) {
+			panic("attempted to cut grapheme cluster")
+		}
 		finishedLines = append(finishedLines, workingLine.String())
 	}
 

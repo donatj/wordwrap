@@ -123,17 +123,29 @@ if errors.Is(err, wordwrap.ErrGraphemeClusterTooLarge) {
 Family emoji on 20-byte limit:
 
 ```go
+// import "errors"
 _, err := wordwrap.SplitString("👩‍👩‍👧‍👧", 20)  // error: emoji is 25 bytes
+if errors.Is(err, wordwrap.ErrGraphemeClusterTooLarge) {
+    // Handle the error
+}
 ```
 
 Person with tree on 8-byte limit:
 
 ```go
+// import "errors"
 _, err := wordwrap.SplitString("🧑‍🎄", 8)  // error: emoji is 11 bytes
+if errors.Is(err, wordwrap.ErrGraphemeClusterTooLarge) {
+    // Handle the error
+}
 ```
 
 String ending with oversized cluster:
 
 ```go
+// import "errors"
 _, err := wordwrap.SplitString("test 👩‍👩‍👧‍👧", 20)  // error: emoji is 25 bytes
+if errors.Is(err, wordwrap.ErrGraphemeClusterTooLarge) {
+    // Handle the error
+}
 ```

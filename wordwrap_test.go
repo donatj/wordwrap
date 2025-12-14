@@ -1,6 +1,7 @@
 package wordwrap
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -193,7 +194,7 @@ func TestSplitStringError(t *testing.T) {
 			if err == nil {
 				t.Errorf("SplitString(%#v, %d) should have returned an error", test.input, test.bytelim)
 			}
-			if err != ErrGraphemeClusterTooLarge {
+			if !errors.Is(err, ErrGraphemeClusterTooLarge) {
 				t.Errorf("SplitString(%#v, %d) returned wrong error: got %v, want %v", test.input, test.bytelim, err, ErrGraphemeClusterTooLarge)
 			}
 		})

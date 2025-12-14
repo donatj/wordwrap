@@ -7,7 +7,9 @@
 
 UTF-8 Safe Word Wrapping for Go based on number of bytes.
 
-This is a word wrap library that doesn’t *break UTF-8 runes* **and** *operates on number of bytes* rather than runes. It’s preference is to break on a unicode space character, but will break long words if necessary. This is particularly useful for breaking up unicode messages on protocols where message size is limited by bytes.
+This library wraps text without breaking UTF-8 grapheme clusters. It operates on byte count, not runes. It breaks on whitespace first. If a word is too long, it breaks between grapheme clusters. It never splits emojis like 👩‍👩‍👧‍👧 or characters with combining marks.
+
+This is useful for protocols where message size is limited by bytes.
 
 ### Samples
 

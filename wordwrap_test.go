@@ -200,3 +200,109 @@ func TestSplitStringError(t *testing.T) {
 		})
 	}
 }
+
+func TestWrapString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		bytelim  uint
+		expected string
+	}{
+		{
+			name:     "Simple wrapping",
+			input:    "Hello world this is a test",
+			bytelim:  10,
+			expected: "Hello \nworld \nthis is a \ntest",
+		},
+		{
+			name:     "English text with spaces",
+			input:    "If any earl, baron, or other person that holds lands directly of the Crown",
+			bytelim:  30,
+			expected: "If any earl, baron, or other \nperson that holds lands \ndirectly of the Crown",
+		},
+		{
+			name:     "Unicode Japanese text",
+			input:    "クラウンの直接土地を保持している任意の伯爵、男爵",
+			bytelim:  30,
+			expected: "クラウンの直接土地を\n保持している任意の伯\n爵、男爵",
+		},
+		{
+			name:     "Text with emoji",
+			input:    "Hello 👋🏽 world",
+			bytelim:  15,
+			expected: "Hello 👋🏽 \nworld",
+		},
+		{
+			name:     "Single line that fits",
+			input:    "Short",
+			bytelim:  20,
+			expected: "Short",
+		},
+		{
+			name:     "Multiple ZWJ emojis",
+			input:    "🧑‍🎄 and 👩‍👩‍👧‍👧 test",
+			bytelim:  30,
+			expected: "🧑‍🎄 and \n👩‍👩‍👧‍👧 \ntest",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := WrapString(test.input, test.bytelim)
+			if err != nil {
+				t.Errorf("WrapString(%#v, %d) returned unexpected error: %v", test.input, test.bytelim, err)
+				return
+			}
+
+			if actual != test.expected {
+				t.Errorf("WrapString(%#v, %d) = %#v; want %#v", test.input, test.bytelim, actual, test.expected)
+			}
+		})
+	}
+}
+
+func TestWrapStringError(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		bytelim uint
+	}{
+		{
+			name:    "Family emoji too large",
+			input:   "👩‍👩‍👧‍👧",
+			bytelim: 20, // Family emoji is 25 bytes
+		},
+		{
+			name:    "Person with tree emoji too large",
+			input:   "🧑‍🎄",
+			bytelim: 8, // Person with tree is 11 bytes
+		},
+		{
+			name:    "Grapheme cluster in text too large",
+			input:   "test👩‍👩‍👧‍👧end",
+			bytelim: 20, // Cannot break within the emoji
+		},
+		{
+			name:    "Single character too large",
+			input:   "し",
+			bytelim: 2, // し is 3 bytes
+		},
+		{
+			name:    "Thai cluster too large",
+			input:   "ก้",
+			bytelim: 5, // ก้ is 6 bytes
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := WrapString(test.input, test.bytelim)
+			if err == nil {
+				t.Errorf("WrapString(%#v, %d) should have returned an error", test.input, test.bytelim)
+			}
+			if !errors.Is(err, ErrGraphemeClusterTooLarge) {
+				t.Errorf("WrapString(%#v, %d) returned wrong error: got %v, want %v", test.input, test.bytelim, err, ErrGraphemeClusterTooLarge)
+			}
+		})
+	}
+}

@@ -5,7 +5,7 @@
 [![GoDoc](https://godoc.org/github.com/donatj/wordwrap?status.svg)](https://godoc.org/github.com/donatj/wordwrap)
 
 
-UTF-8 Safe Word Wrapping for Go based on number of bytes.
+UTF-8 Grapheme Cluster Safe Word Wrapping / Line Splitting for Go based on number of bytes.
 
 This library wraps text without breaking UTF-8 grapheme clusters. It operates on byte count, not runes. It breaks on whitespace first. If a word is too long, it breaks between grapheme clusters. It never splits emojis like 👩‍👩‍👧‍👧 or characters with combining marks.
 

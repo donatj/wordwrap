@@ -22,8 +22,16 @@ type charPos struct {
 	pos, size int
 }
 
+func isBreakableSpace(r rune) bool {
+	switch r {
+	case '\u00a0', '\u2007', '\u202f': // Non-breaking, figure, and narrow non-breaking spaces.
+		return false
+	}
+	return unicode.IsSpace(r)
+}
+
 // SplitString splits a string at a certain number of bytes without breaking
-// UTF-8 runes, grapheme clusters, and on Unicode space characters when possible.
+// UTF-8 runes or grapheme clusters, and prefers breakable Unicode spaces when possible.
 //
 // SplitString returns an ErrGraphemeClusterTooLarge error if it is forced to split
 // a grapheme cluster that is larger than the byte limit.
@@ -34,7 +42,8 @@ func SplitString(s string, byteLimit uint) ([]string, error) {
 	var workingLine strings.Builder
 	finishedLines := []string{}
 
-	spacePos := charPos{}
+	preferredSpacePos := charPos{}
+	fallbackSpacePos := charPos{}
 	lastPos := charPos{}
 
 	// Use grapheme cluster iterator
@@ -45,19 +54,35 @@ func SplitString(s string, byteLimit uint) ([]string, error) {
 
 		workingLine.WriteString(cluster)
 
-		// Check if the cluster contains a space (check first rune)
+		// Track breakable spaces separately so they are always preferred.
 		firstRune, _ := utf8.DecodeRuneInString(cluster)
-		if unicode.IsSpace(firstRune) {
-			spacePos = charPos{workingLine.Len(), clusterSize}
+		if unicode.IsSpace(firstRune) && workingLine.Len() <= int(byteLimit) {
+			fallbackSpacePos = charPos{workingLine.Len(), clusterSize}
+			if isBreakableSpace(firstRune) {
+				preferredSpacePos = fallbackSpacePos
+			}
 		}
 
 		if workingLine.Len() >= int(byteLimit) {
-			if spacePos.size > 0 {
+			breakPos := preferredSpacePos
+			if breakPos.size == 0 {
+				breakPos = fallbackSpacePos
+			}
+
+			if breakPos.size > 0 {
 				line := workingLine.String()
-				finishedLines = append(finishedLines, line[0:spacePos.pos])
+				finishedLines = append(finishedLines, line[0:breakPos.pos])
 
 				workingLine.Reset()
-				workingLine.WriteString(line[spacePos.pos:])
+				workingLine.WriteString(line[breakPos.pos:])
+
+				// Preserve a non-breaking-space fallback that remains on the next line.
+				preferredSpacePos = charPos{}
+				if fallbackSpacePos.pos > breakPos.pos {
+					fallbackSpacePos.pos -= breakPos.pos
+				} else {
+					fallbackSpacePos = charPos{}
+				}
 			} else {
 				if workingLine.Len() > int(byteLimit) {
 					// If there's no valid break point (lastPos.pos is 0),
@@ -67,20 +92,22 @@ func SplitString(s string, byteLimit uint) ([]string, error) {
 					}
 					line := workingLine.String()
 					finishedLines = append(finishedLines, line[0:lastPos.pos])
-					
+
 					workingLine.Reset()
 					workingLine.WriteString(line[lastPos.pos:])
 				} else {
 					finishedLines = append(finishedLines, workingLine.String())
 					workingLine.Reset()
 				}
+
+				preferredSpacePos = charPos{}
+				fallbackSpacePos = charPos{}
 			}
 
 			if len(finishedLines[len(finishedLines)-1]) > int(byteLimit) {
 				return nil, ErrGraphemeClusterTooLarge
 			}
 
-			spacePos = charPos{}
 		}
 
 		lastPos = charPos{workingLine.Len(), clusterSize}

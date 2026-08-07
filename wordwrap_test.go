@@ -130,6 +130,70 @@ func TestSplitString(t *testing.T) {
 	}
 }
 
+func TestSplitStringUnicodeSpaces(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		output  []string
+		bytelim uint
+	}{
+		{
+			name:    "non-breaking space is used as a fallback break",
+			input:   "a\u00a0bc",
+			output:  []string{"a\u00a0", "bc"},
+			bytelim: 4,
+		},
+		{
+			name:    "figure space is used as a fallback break",
+			input:   "a\u2007bc",
+			output:  []string{"a\u2007", "bc"},
+			bytelim: 5,
+		},
+		{
+			name:    "narrow non-breaking space is used as a fallback break",
+			input:   "a\u202fbc",
+			output:  []string{"a\u202f", "bc"},
+			bytelim: 5,
+		},
+		{
+			name:    "breakable Unicode space creates a preferred break",
+			input:   "a\u2003bc",
+			output:  []string{"a\u2003", "bc"},
+			bytelim: 5,
+		},
+		{
+			name:    "breakable space is preferred over a non-breaking-space fallback",
+			input:   "a\u00a0b cde",
+			output:  []string{"a\u00a0b ", "cde"},
+			bytelim: 6,
+		},
+		{
+			name:    "fallback is retained after a preferred break",
+			input:   "a \u00a0bcd",
+			output:  []string{"a ", "\u00a0", "bcd"},
+			bytelim: 5,
+		},
+		{
+			name:    "non-breaking space is not reported as oversized when it fits alone",
+			input:   "a\u00a0",
+			output:  []string{"a", "\u00a0"},
+			bytelim: 2,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := SplitString(test.input, test.bytelim)
+			if err != nil {
+				t.Fatalf("SplitString(%#v, %d) returned unexpected error: %v", test.input, test.bytelim, err)
+			}
+			if !reflect.DeepEqual(actual, test.output) {
+				t.Errorf("SplitString(%#v, %d) = %#v; want %#v", test.input, test.bytelim, actual, test.output)
+			}
+		})
+	}
+}
+
 func TestSplitStringError(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -185,6 +249,11 @@ func TestSplitStringError(t *testing.T) {
 			name:    "Vietnamese combining marks too large",
 			input:   "ệ",
 			bytelim: 2, // ệ is 3 bytes
+		},
+		{
+			name:    "Non-breaking space too large",
+			input:   "\u00a0",
+			bytelim: 1, // Non-breaking space is 2 bytes
 		},
 	}
 

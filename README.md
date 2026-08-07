@@ -7,7 +7,7 @@
 
 UTF-8 Grapheme Cluster Safe Word Wrapping / Line Splitting for Go based on number of bytes.
 
-This library wraps text without breaking UTF-8 grapheme clusters. It operates on byte count, not runes. It breaks on whitespace first. If a word is too long, it breaks between grapheme clusters. It never splits emojis like 👩‍👩‍👧‍👧 or characters with combining marks.
+This library wraps text without breaking UTF-8 grapheme clusters. It operates on byte count, not runes. It prefers breakable whitespace, then other Unicode whitespace, before breaking between grapheme clusters. It never splits emojis like 👩‍👩‍👧‍👧 or characters with combining marks.
 
 This is useful for protocols where message size is limited by bytes.
 

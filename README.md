@@ -1,8 +1,7 @@
 # WordWrap
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/donatj/wordwrap)](https://goreportcard.com/report/github.com/donatj/wordwrap)
 [![CI](https://github.com/donatj/wordwrap/actions/workflows/ci.yml/badge.svg)](https://github.com/donatj/wordwrap/actions/workflows/ci.yml)
-[![GoDoc](https://godoc.org/github.com/donatj/wordwrap?status.svg)](https://godoc.org/github.com/donatj/wordwrap)
+[![Go Reference](https://pkg.go.dev/badge/github.com/donatj/wordwrap.svg)](https://pkg.go.dev/github.com/donatj/wordwrap)
 
 
 UTF-8 Grapheme Cluster Safe Word Wrapping / Line Splitting for Go based on number of bytes.
@@ -11,19 +10,37 @@ This library wraps text without breaking UTF-8 grapheme clusters. It operates on
 
 This is useful for protocols where message size is limited by bytes.
 
-### Samples
+`WrapString` returns a newline-separated string. `SplitString` returns a slice of lines. Each line stays within the byte limit.
+
+A grapheme cluster can be a character with combining marks or an emoji sequence such as 👩‍👩‍👧‍👧. If one is larger than the limit, the package returns `ErrGraphemeClusterTooLarge`.
+
+## Requirements
+
+Go 1.18 or later.
+
+## Samples
 
 English:
 
 ```go
-// import "log"
-wrapped, err := wordwrap.WrapString(
-	`If any earl, baron, or other person that holds lands directly of the Crown, for military service, shall die, and at his death his heir shall be of full age and owe a 'relief', the heir shall have his inheritance on payment of the ancient scale of 'relief'.`,
-	60)
-if err != nil {
-	log.Fatal(err)
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/donatj/wordwrap"
+)
+
+func main() {
+	wrapped, err := wordwrap.WrapString(
+		`If any earl, baron, or other person that holds lands directly of the Crown, for military service, shall die, and at his death his heir shall be of full age and owe a 'relief', the heir shall have his inheritance on payment of the ancient scale of 'relief'.`,
+		60)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(wrapped)
 }
-fmt.Println(wrapped)
 ```
 
 Becomes:
@@ -42,7 +59,6 @@ the ancient scale of 'relief'.                               // 30 bytes
 Japanese:
 
 ```go
-// import "log"
 wrapped, err := wordwrap.WrapString(
 	`クラウンの直接土地を保持している任意の伯爵、男爵、または他の人は、兵役のために、死ぬ、と彼の死で彼の後継者は成年であることと「救済」を借りなければならない場合は、相続人は、支払いの彼の継承をもたなければなりません「救済」の古代規模の。`,
 	60)
@@ -68,7 +84,6 @@ Becomes:
 Korean:
 
 ```go
-// import "log"
 wrapped, err := wordwrap.WrapString(
 	`크라운 의 직접 토지 를 보유하고 있는 백작 , 남작 , 또는 다른 사람이 군 복무 를 위해 죽을 것이요, 그의 죽음 에 그의 후계자 가 전체 연령 하고' 구호 '을 빚을 해야 하는 경우, 상속인 이 지불 에 대한 자신의 상속을 가져야한다 ' 구호 ' 의 고대 규모의 `,
 	60)
@@ -94,9 +109,8 @@ Becomes:
 Grapheme Clusters:
 
 ```go
-// import "log"
 wrapped, err := wordwrap.WrapString(
-	`Hello 👩‍👩‍👧‍👧 family 🧑‍🎄 celebrating café with naïve résumé क्षि`, 
+	`Hello 👩‍👩‍👧‍👧 family 🧑‍🎄 celebrating café with naïve résumé क्षि`,
 	30)
 if err != nil {
 	log.Fatal(err)
